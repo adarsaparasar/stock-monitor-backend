@@ -18,11 +18,16 @@ public class WebSocketConfig
         config.enableSimpleBroker("/topic");
     }
 
+
     @Override
     public void registerStompEndpoints(
             StompEndpointRegistry registry) {
 
         registry.addEndpoint("/ws-stocks")
-                .setAllowedOrigins("http://localhost:5173");
+                .setAllowedOrigins(
+                        "http://localhost:5173",
+                        "https://stock-monitor-frontend-neon.vercel.app"
+                );
     }
+
 }
