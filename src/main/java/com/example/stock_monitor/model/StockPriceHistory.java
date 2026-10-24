@@ -18,8 +18,10 @@ public class StockPriceHistory {
     @Column(nullable = false)
     private Double price;
 
-    private Double change;
+    @Column(name = "price_change")
+    private double change;
 
+    @Column(name = "change_percent")
     private Double changePercent;
 
     @Column(nullable = false)
@@ -31,10 +33,9 @@ public class StockPriceHistory {
     public StockPriceHistory(
             String symbol,
             double price,
-            double change,
-            double changePercent,
+            double price_change,
+            double change_Percent,
             LocalDateTime recordedAt) {
-
         this.symbol = symbol;
         this.price = price;
         this.change = change;
