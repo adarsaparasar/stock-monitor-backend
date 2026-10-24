@@ -6,14 +6,18 @@ import com.example.stock_monitor.model.Stock;
 import com.example.stock_monitor.model.StockPriceHistory;
 import com.example.stock_monitor.repository.StockPriceHistoryRepository;
 import com.example.stock_monitor.repository.StockRepository;
+
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
 
 @Component
 public class StockPriceScheduler {
+
+    private static final String SYMBOL = "IBM";
 
     private final StockRepository stockRepository;
     private final StockPriceHistoryRepository historyRepository;
@@ -32,92 +36,122 @@ public class StockPriceScheduler {
         this.webSocketService = webSocketService;
     }
 
-    // Run every five minutes
-    //@Scheduled(fixedRate = 300000)
+    // Update IBM hourly, starting one hour after startup.
+    @Scheduled(fixedRate = 3600000, initialDelay = 3600000)
     @CacheEvict(value = "stocks", allEntries = true)
     public void updateStockPrices() {
 
-        System.out.println("========== STOCK UPDATE STARTED ==========");
+        System.out.println("========== IBM STOCK UPDATE STARTED ==========");
         System.out.println("Update time: " + LocalDateTime.now());
 
-        List<Stock> stocks = stockRepository.findAll();
-        System.out.println("Stocks found: " + stocks.size());
+        Optional<Stock> optionalStock =
+                stockRepository.findBySymbolIgnoreCase(SYMBOL);
 
-        for (Stock stock : stocks) {
-            try {
-                String symbol = stock.getSymbol();
-                double previousPrice = stock.getPrice();
-
-                System.out.println("Fetching price for: " + symbol);
-
-                StockPriceResponse latestPrice =
-                        marketDataService.getStockPrice(symbol);
-
-                double price = latestPrice.getPrice();
-                double change = latestPrice.getChange();
-
-                String percentText = latestPrice
-                        .getChangePercent()
-                        .replace("%", "")
-                        .trim();
-
-                double changePercent = Double.parseDouble(percentText);
-
-                LocalDateTime recordedAt = LocalDateTime.now();
-
-                // Update the current stock
-                stock.setPrice(price);
-                stock.setChange(change);
-                stock.setChangePercent(changePercent);
-                stockRepository.save(stock);
-
-                // Save history only if the price has changed
-                if (Double.compare(previousPrice, price) != 0) {
-
-                    StockPriceHistory history = new StockPriceHistory(
-                            symbol,
-                            price,
-                            change,
-                            changePercent,
-                            recordedAt
-                    );
-
-                    historyRepository.save(history);
-
-                    System.out.println(
-                            "New history saved for " + symbol
-                                    + " | Previous: " + previousPrice
-                                    + " | Current: " + price
-                    );
-
-                } else {
-                    System.out.println(
-                            "Price unchanged for " + symbol
-                                    + " | Price: " + price
-                                    + " | Duplicate history skipped"
-                    );
-                }
-
-                // Broadcast the latest stock data to React
-                webSocketService.sendStockUpdate(stock);
-
-                System.out.printf(
-                        "Updated %s | Price: %.2f | Change: %.2f"
-                                + " | Change %%: %.4f%%%n",
-                        symbol,
-                        price,
-                        change,
-                        changePercent
-                );
-
-            } catch (Exception e) {
-                System.err.println(
-                        "Failed to update " + stock.getSymbol()
-                                + " | Error: " + e.getMessage()
-                );
-            }
+        if (optionalStock.isEmpty()) {
+            System.out.println(
+                    "IBM was not found in the database. Update skipped."
+            );
+            return;
         }
 
-        System.out.println("========== STOCK UPDATE FINISHED ==========");
+        Stock stock = optionalStock.get();
+
+        try {
+            double previousPrice = stock.getPrice();
+
+            StockPriceResponse latestPrice =
+                    marketDataService.getStockPrice(SYMBOL);
+
+            double price = latestPrice.getPrice();
+            double change = latestPrice.getChange();
+
+            String percentText = latestPrice.getChangePercent()
+                    .replace("%", "")
+                    .trim();
+
+            double changePercent = Double.parseDouble(percentText);
+            LocalDateTime recordedAt = LocalDateTime.now();
+
+            stock.setPrice(price);
+            stock.setChange(change);
+            stock.setChangePercent(changePercent);
+            stockRepository.save(stock);
+
+            if (Double.compare(previousPrice, price) != 0) {
+                StockPriceHistory history = new StockPriceHistory(
+                        SYMBOL,
+                        price,
+                        change,
+                        changePercent,
+                        recordedAt
+                );
+
+                historyRepository.save(history);
+                System.out.println("IBM price history saved.");
+            } else {
+                System.out.println("IBM price unchanged; history skipped.");
+            }
+
+            webSocketService.sendStockUpdate(stock);
+
+            System.out.printf(
+                    "Updated IBM | Price: %.2f | Change: %.2f"
+                            + " | Change %%: %.4f%%%n",
+                    price,
+                    change,
+                    changePercent
+            );
+
+        } catch (Exception e) {
+            System.err.println(
+                    "Failed to update IBM: " + e.getMessage()
+            );
+        }
+
+        System.out.println("========== IBM STOCK UPDATE FINISHED ==========");
+    }
+
+    // Manually fetch and save IBM data for testing.
+    public void updateIbmPriceNow() {
+
+        Stock stock = stockRepository.findBySymbolIgnoreCase(SYMBOL)
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "IBM was not found in the database."
+                        ));
+
+        StockPriceResponse latestPrice =
+                marketDataService.getStockPrice(SYMBOL);
+
+        double price = latestPrice.getPrice();
+        double change = latestPrice.getChange();
+
+        String percentText = latestPrice.getChangePercent()
+                .replace("%", "")
+                .trim();
+
+        double changePercent = Double.parseDouble(percentText);
+        LocalDateTime recordedAt = LocalDateTime.now();
+
+        stock.setPrice(price);
+        stock.setChange(change);
+        stock.setChangePercent(changePercent);
+        stockRepository.save(stock);
+
+        StockPriceHistory history = new StockPriceHistory(
+                SYMBOL,
+                price,
+                change,
+                changePercent,
+                recordedAt
+        );
+
+        historyRepository.save(history);
+        webSocketService.sendStockUpdate(stock);
+
+        System.out.println(
+                "Manual IBM update completed | Price: " + price
+                        + " | Recorded at: " + recordedAt
+        );
     }
 }

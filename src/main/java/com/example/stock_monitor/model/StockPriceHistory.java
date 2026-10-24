@@ -16,13 +16,11 @@ public class StockPriceHistory {
     private String symbol;
 
     @Column(nullable = false)
-    private double price;
+    private Double price;
 
-    @Column(name = "price_change")
-    private double change;
+    private Double change;
 
-    @Column(name = "change_percent")
-    private double changePercent;
+    private Double changePercent;
 
     @Column(nullable = false)
     private LocalDateTime recordedAt;
@@ -36,6 +34,7 @@ public class StockPriceHistory {
             double change,
             double changePercent,
             LocalDateTime recordedAt) {
+
         this.symbol = symbol;
         this.price = price;
         this.change = change;
@@ -51,15 +50,15 @@ public class StockPriceHistory {
         return symbol;
     }
 
-    public double getPrice() {
+    public Double getPrice() {
         return price;
     }
 
-    public double getChange() {
+    public Double getChange() {
         return change;
     }
 
-    public double getChangePercent() {
+    public Double getChangePercent() {
         return changePercent;
     }
 
@@ -67,19 +66,23 @@ public class StockPriceHistory {
         return recordedAt;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public void setSymbol(String symbol) {
         this.symbol = symbol;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(Double price) {
         this.price = price;
     }
 
-    public void setChange(double change) {
+    public void setChange(Double change) {
         this.change = change;
     }
 
-    public void setChangePercent(double changePercent) {
+    public void setChangePercent(Double changePercent) {
         this.changePercent = changePercent;
     }
 

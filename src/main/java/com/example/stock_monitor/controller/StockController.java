@@ -1,3 +1,4 @@
+
 package com.example.stock_monitor.controller;
 
 import com.example.stock_monitor.dto.StockPriceResponse;
@@ -7,6 +8,7 @@ import com.example.stock_monitor.service.AlphaVantageMarketDataService;
 import com.example.stock_monitor.service.StockService;
 import com.example.stock_monitor.service.StockWebSocketService;
 import com.fasterxml.jackson.databind.JsonNode;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,25 +37,25 @@ public class StockController {
         return "Stock Monitoring System is online!";
     }
 
-    // Get all stocks
+    // Get all stocks from database
     @GetMapping
     public List<Stock> getAllStocks() {
         return stockService.getAllStocks();
     }
 
-    // Get stock by symbol from database
+    // Get stock by symbol
     @GetMapping("/{symbol}")
     public Stock getStock(@PathVariable String symbol) {
         return stockService.getStock(symbol);
     }
 
-    // Add stock
+    // Add a stock
     @PostMapping
     public Stock addStock(@RequestBody StockRequest request) {
         return stockService.addStock(request);
     }
 
-    // Update stock
+    // Update a stock
     @PutMapping("/{id}")
     public Stock updateStock(
             @PathVariable Long id,
@@ -62,7 +64,7 @@ public class StockController {
         return stockService.updateStock(id, stock);
     }
 
-    // Delete stock
+    // Delete a stock
     @DeleteMapping("/{id}")
     public String deleteStock(@PathVariable Long id) {
 
@@ -75,12 +77,15 @@ public class StockController {
         return "Stock not found";
     }
 
-    // Get live stock price from Alpha Vantage
+    // Get current/latest price from Alpha Vantage
     @GetMapping("/{symbol}/price")
-    public StockPriceResponse getLivePrice(@PathVariable String symbol) {
+    public StockPriceResponse getLivePrice(
+            @PathVariable String symbol) {
+
         return alphaVantageMarketDataService.getStockPrice(symbol);
     }
 
+    // Test WebSocket updates
     @GetMapping("/test-websocket")
     public String testWebSocket() {
 
@@ -92,15 +97,17 @@ public class StockController {
         );
 
         testStock.setChange(1.50);
-
         stockWebSocketService.sendStockUpdate(testStock);
 
         return "Test stock update sent!";
     }
 
+    // Get daily market data directly from Alpha Vantage
     @GetMapping("/{symbol}/market-history")
-    public JsonNode getMarketHistory(@PathVariable String symbol) {
-        return alphaVantageMarketDataService.getDailyMarketHistory(symbol);
-    }
+    public JsonNode getMarketHistory(
+            @PathVariable String symbol) {
 
+        return alphaVantageMarketDataService
+                .getDailyMarketHistory(symbol);
+    }
 }
