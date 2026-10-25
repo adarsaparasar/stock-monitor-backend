@@ -36,46 +36,47 @@ public class StockPriceScheduler {
     @Scheduled(fixedRate = 3600000, initialDelay = 3600000)
     @CacheEvict(value = "stocks", allEntries = true)
     public void updateStockPrices() {
-        System.out.println("========== IBM STOCK UPDATE STARTED ==========");
+        System.out.println(
+                "========== IBM STOCK UPDATE STARTED ==========");
 
         try {
             updateIbmPriceNow();
         } catch (Exception e) {
-            System.err.println("Failed to update IBM: " + e.getMessage());
+            System.err.println(
+                    "Failed to update IBM: " + e.getMessage());
+            e.printStackTrace();
         }
 
-        System.out.println("========== IBM STOCK UPDATE FINISHED ==========");
+        System.out.println(
+                "========== IBM STOCK UPDATE FINISHED ==========");
     }
 
     public void updateIbmPriceNow() {
         Stock stock = stockRepository.findBySymbolIgnoreCase(SYMBOL)
                 .orElseThrow(() ->
                         new IllegalStateException(
-                                "IBM was not found in the database."
-                        ));
-
-        double previousPrice = stock.getPrice();
+                                "IBM was not found in the database."));
 
         StockPriceResponse latestPrice =
                 marketDataService.getStockPrice(SYMBOL);
 
         if (latestPrice == null || latestPrice.getPrice() <= 0) {
             throw new IllegalStateException(
-                    "Alpha Vantage returned an invalid IBM price."
-            );
+                    "Alpha Vantage returned an invalid IBM price.");
         }
 
         double price = latestPrice.getPrice();
+        double change = latestPrice.getChange();
 
-        // Calculate change from the price already stored for IBM.
-        double change = price - previousPrice;
+        String changePercentText = latestPrice.getChangePercent()
+                .replace("%", "")
+                .trim();
 
-        double changePercent = previousPrice > 0
-                ? (change / previousPrice) * 100.0
-                : 0.0;
+        double changePercent = Double.parseDouble(changePercentText);
 
         LocalDateTime recordedAt = LocalDateTime.now();
 
+        // Store the quote and its reported daily change.
         stock.setPrice(price);
         stock.setChange(change);
         stock.setChangePercent(changePercent);
