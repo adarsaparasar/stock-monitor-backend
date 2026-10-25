@@ -33,8 +33,8 @@ public class StockPriceHistory {
     public StockPriceHistory(
             String symbol,
             double price,
-            double price_change,
-            double change_Percent,
+            double change,
+            double changePercent,
             LocalDateTime recordedAt) {
         this.symbol = symbol;
         this.price = price;
