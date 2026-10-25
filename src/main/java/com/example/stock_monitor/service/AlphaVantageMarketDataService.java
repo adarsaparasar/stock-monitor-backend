@@ -1,15 +1,16 @@
 
-        package com.example.stock_monitor.service;
+package com.example.stock_monitor.service;
 
-        import com.example.stock_monitor.dto.StockPriceResponse;
-        import com.fasterxml.jackson.databind.JsonNode;
-        import com.fasterxml.jackson.databind.ObjectMapper;
-        import org.springframework.beans.factory.annotation.Value;
-        import org.springframework.cache.annotation.Cacheable;
-        import org.springframework.stereotype.Service;
-        import org.springframework.web.client.RestClient;
+import com.example.stock_monitor.dto.StockPriceResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-        @Service
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+@Service
 public class AlphaVantageMarketDataService {
 
     private final RestClient restClient;
@@ -30,7 +31,7 @@ public class AlphaVantageMarketDataService {
     }
 
     /**
-     * Fetch the latest quote for a stock using GLOBAL_QUOTE.
+     * Fetch the latest available quote using Alpha Vantage GLOBAL_QUOTE.
      */
     public StockPriceResponse getStockPrice(String symbol) {
 
@@ -52,6 +53,7 @@ public class AlphaVantageMarketDataService {
 
             JsonNode root = objectMapper.readTree(response);
 
+            // Handle API errors and rate limits.
             if (root.has("Information") || root.has("Note")) {
                 String message = root.has("Information")
                         ? root.get("Information").asText()
@@ -68,15 +70,21 @@ public class AlphaVantageMarketDataService {
 
             JsonNode quote = root.path("Global Quote");
 
+            // Diagnostic log: inspect the actual response in Render logs.
+            System.out.println(
+                    "Alpha Vantage " + symbol + " quote: "
+                            + quote.toPrettyString());
+
             String stockSymbol = quote.path("01. symbol").asText();
             String priceText = quote.path("05. price").asText();
             String changeText = quote.path("09. change").asText();
-            String changePercent = quote.path("10. change percent").asText();
+            String changePercentText =
+                    quote.path("10. change percent").asText();
 
             if (stockSymbol.isBlank()
                     || priceText.isBlank()
                     || changeText.isBlank()
-                    || changePercent.isBlank()) {
+                    || changePercentText.isBlank()) {
 
                 throw new StockDataNotFoundException(
                         "Incomplete stock quote received for: " + symbol);
@@ -89,7 +97,7 @@ public class AlphaVantageMarketDataService {
                     stockSymbol,
                     price,
                     change,
-                    changePercent
+                    changePercentText
             );
 
         } catch (StockDataNotFoundException
@@ -104,7 +112,8 @@ public class AlphaVantageMarketDataService {
 
     /**
      * Fetch daily historical prices.
-     * Successful responses are cached in Redis for 24 hours.
+     * Successful responses are cached according to your configured
+     * Spring Cache / Redis settings.
      */
     @Cacheable(
             value = "dailyMarketHistory",
