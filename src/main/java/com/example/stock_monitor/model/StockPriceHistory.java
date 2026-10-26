@@ -1,93 +1,127 @@
 
-package com.example.stock_monitor.model;
+package com.example.stock_monitor.controller;
 
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import com.example.stock_monitor.dto.StockPriceResponse;
+import com.example.stock_monitor.dto.StockRequest;
+import com.example.stock_monitor.model.Stock;
+import com.example.stock_monitor.model.StockPriceHistory;
+import com.example.stock_monitor.repository.StockPriceHistoryRepository;
+import com.example.stock_monitor.service.AlphaVantageMarketDataService;
+import com.example.stock_monitor.service.StockService;
+import com.example.stock_monitor.service.StockWebSocketService;
+import com.fasterxml.jackson.databind.JsonNode;
 
-@Entity
-@Table(name = "stock_price_history")
-public class StockPriceHistory {
+import org.springframework.web.bind.annotation.*;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+import java.util.List;
 
-    @Column(nullable = false)
-    private String symbol;
+@RestController
+@RequestMapping("/api/stocks")
+public class StockController {
 
-    @Column(nullable = false)
-    private Double price;
+    private final StockService stockService;
+    private final AlphaVantageMarketDataService alphaVantageMarketDataService;
+    private final StockWebSocketService stockWebSocketService;
+    private final StockPriceHistoryRepository historyRepository;
 
-    @Column(name = "price_change")
-    private double change;
+    public StockController(
+            StockService stockService,
+            AlphaVantageMarketDataService alphaVantageMarketDataService,
+            StockWebSocketService stockWebSocketService,
+            StockPriceHistoryRepository historyRepository) {
 
-    @Column(name = "change_percent")
-    private Double changePercent;
-
-    @Column(nullable = false)
-    private LocalDateTime recordedAt;
-
-    public StockPriceHistory() {
+        this.stockService = stockService;
+        this.alphaVantageMarketDataService = alphaVantageMarketDataService;
+        this.stockWebSocketService = stockWebSocketService;
+        this.historyRepository = historyRepository;
     }
 
-    public StockPriceHistory(
-            String symbol,
-            double price,
-            double change,
-            double changePercent,
-            LocalDateTime recordedAt) {
-        this.symbol = symbol;
-        this.price = price;
-        this.change = change;
-        this.changePercent = changePercent;
-        this.recordedAt = recordedAt;
+    // Check whether the application is running
+    @GetMapping("/status")
+    public String status() {
+        return "Stock Monitoring System is online!";
     }
 
-    public Long getId() {
-        return id;
+    // Get all stocks from the database
+    @GetMapping
+    public List<Stock> getAllStocks() {
+        return stockService.getAllStocks();
     }
 
-    public String getSymbol() {
-        return symbol;
+    // Get a stock by symbol
+    @GetMapping("/{symbol}")
+    public Stock getStock(@PathVariable String symbol) {
+        return stockService.getStock(symbol);
     }
 
-    public Double getPrice() {
-        return price;
+    // Get saved price history from MySQL for the graph
+    @GetMapping("/{symbol}/history")
+    public List<StockPriceHistory> getStockHistory(
+            @PathVariable String symbol) {
+
+        return historyRepository
+                .findBySymbolIgnoreCaseOrderByRecordedAtAsc(symbol);
     }
 
-    public Double getChange() {
-        return change;
+    // Add a stock
+    @PostMapping
+    public Stock addStock(@RequestBody StockRequest request) {
+        return stockService.addStock(request);
     }
 
-    public Double getChangePercent() {
-        return changePercent;
+    // Update a stock
+    @PutMapping("/{id}")
+    public Stock updateStock(
+            @PathVariable Long id,
+            @RequestBody Stock stock) {
+
+        return stockService.updateStock(id, stock);
     }
 
-    public LocalDateTime getRecordedAt() {
-        return recordedAt;
+    // Delete a stock
+    @DeleteMapping("/{id}")
+    public String deleteStock(@PathVariable Long id) {
+
+        boolean deleted = stockService.deleteStock(id);
+
+        if (deleted) {
+            return "Stock deleted successfully";
+        }
+
+        return "Stock not found";
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    // Get the latest quote directly from Alpha Vantage
+    @GetMapping("/{symbol}/price")
+    public StockPriceResponse getLivePrice(
+            @PathVariable String symbol) {
+
+        return alphaVantageMarketDataService.getStockPrice(symbol);
     }
 
-    public void setSymbol(String symbol) {
-        this.symbol = symbol;
+    // Test WebSocket updates
+    @GetMapping("/test-websocket")
+    public String testWebSocket() {
+
+        Stock testStock = new Stock(
+                "TEST",
+                "WebSocket Test",
+                123.45,
+                1.25
+        );
+
+        testStock.setChange(1.50);
+        stockWebSocketService.sendStockUpdate(testStock);
+
+        return "Test stock update sent!";
     }
 
-    public void setPrice(Double price) {
-        this.price = price;
-    }
+    // Get daily market history directly from Alpha Vantage
+    @GetMapping("/{symbol}/market-history")
+    public JsonNode getMarketHistory(
+            @PathVariable String symbol) {
 
-    public void setChange(Double change) {
-        this.change = change;
-    }
-
-    public void setChangePercent(Double changePercent) {
-        this.changePercent = changePercent;
-    }
-
-    public void setRecordedAt(LocalDateTime recordedAt) {
-        this.recordedAt = recordedAt;
+        return alphaVantageMarketDataService
+                .getDailyMarketHistory(symbol);
     }
 }
