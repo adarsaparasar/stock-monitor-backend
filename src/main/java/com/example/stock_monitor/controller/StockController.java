@@ -107,4 +107,11 @@ public class StockController {
         return alphaVantageMarketDataService
                 .getDailyMarketHistory(symbol);
     }
+
+    @GetMapping("/IBM/update-now")
+    public String updateIbmNow() {
+        stockPriceScheduler.updateIbmPriceNow();
+        return "IBM price updated and history save attempted.";
+    }
+
 }
